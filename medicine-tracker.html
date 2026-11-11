@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mom's Medicine Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: #f2f4f7; color: #1a1a1a; padding: 14px; max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 6px 0 2px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 14px; }
+  .card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .med-name { font-size: 18px; font-weight: 700; }
+  .med-note { color: #666; font-size: 13px; margin-top: 2px; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 8px; flex-wrap: wrap; }
+  .stock { font-size: 15px; }
+  .stock b { font-size: 22px; }
+  .days { font-size: 15px; font-weight: 700; }
+  .finish { font-size: 13px; color: #555; margin-top: 4px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 8px; }
+  .ok { background: #e6f4ea; color: #137333; }
+  .warn { background: #fef7e0; color: #b06000; }
+  .urgent { background: #fce8e6; color: #a50e0e; }
+  .btn { border: none; border-radius: 10px; padding: 10px 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-buy { background: #137333; color: #fff; }
+  .btn-edit { background: #e8f0fe; color: #1967d2; }
+  .btn-del { background: #fce8e6; color: #a50e0e; }
+  .btn-add { background: #1967d2; color: #fff; width: 100%; padding: 14px; font-size: 17px; margin: 6px 0 8px; }
+  .btn-scan { background: #fff; color: #1967d2; border: 2px solid #1967d2; width: 100%; padding: 12px; font-size: 16px; margin: 0 0 14px; }
+  .btn-ghost { background: #fff; color: #1967d2; border: 1px solid #dadce0; }
+  .btn-danger { background: #a50e0e; color: #fff; }
+  .btns { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .section-title { font-size: 16px; font-weight: 700; margin: 16px 0 8px; }
+  .alert-box { background: #fce8e6; border: 1px solid #f5a9a2; }
+  .empty { text-align: center; color: #666; padding: 26px 10px; font-size: 15px; }
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 10; align-items: flex-end; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; border-radius: 16px 16px 0 0; padding: 18px; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
+  .modal h2 { font-size: 19px; margin-bottom: 12px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 10px 0 4px; }
+  input { width: 100%; padding: 11px; font-size: 16px; border: 1px solid #dadce0; border-radius: 10px; }
+  .modal .btns { margin-top: 16px; }
+  .footer { text-align: center; color: #888; font-size: 12px; margin: 18px 0 8px; line-height: 1.6; }
+  .small { font-size: 13px; color: #666; }
+  #scanVideo { width: 100%; border-radius: 10px; background: #000; min-height: 180px; }
+</style>
+</head>
+<body>
+
+<h1>💊 Mom's Medicine</h1>
+<div class="sub" id="todayLine"></div>
+
+<button class="btn btn-add" id="addBtn">+ Add New Medicine</button>
+<button class="btn btn-scan" id="scanBtn">📷 Scan Barcode</button>
+
+<div id="alertSection"></div>
+
+<div class="section-title">All Medicines</div>
+<div id="medList"></div>
+
+<div class="footer">Stock decreases automatically every day you open it (based on the daily dose).<br>If the stock looks wrong, fix it with Edit.<br>Once a barcode is saved, scanning it later will bring up the medicine.<br>Every save backs up to Google Sheet automatically.</div>
+
+<!-- Add / Edit modal -->
+<div class="modal-bg" id="formModal">
+  <div class="modal">
+    <h2 id="formTitle">New Medicine</h2>
+    <input type="hidden" id="editId">
+    <label>Medicine name *</label>
+    <input type="text" id="fName" placeholder="e.g. Thyronorm 50">
+    <label>How many per day *</label>
+    <input type="number" id="fPerDay" min="0.5" step="0.5" placeholder="e.g. 1">
+    <label>How many in stock now *</label>
+    <input type="number" id="fStock" min="0" step="1" placeholder="e.g. 30">
+    <label>When to take / note (optional)</label>
+    <input type="text" id="fNote" placeholder="e.g. morning on empty stomach">
+    <label>Barcode (optional)</label>
+    <div style="display:flex; gap:8px">
+      <input type="text" id="fBarcode" inputmode="numeric" placeholder="barcode number on the strip" style="flex:1">
+      <button class="btn btn-ghost" id="formScanBtn" type="button">📷 Scan</button>
+    </div>
+    <div class="btns">
+      <button class="btn btn-buy" id="saveBtn" style="flex:1">Save</button>
+      <button class="btn btn-ghost" id="cancelFormBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Buy modal -->
+<div class="modal-bg" id="buyModal">
+  <div class="modal">
+    <h2 id="buyTitle">Bought</h2>
+    <input type="hidden" id="buyId">
+    <label>How many did you buy?</label>
+    <input type="number" id="buyQty" min="1" step="1" placeholder="e.g. 30">
+    <div class="btns">
+      <button class="btn btn-buy" id="confirmBuyBtn" style="flex:1">Add to Stock</button>
+      <button class="btn btn-ghost" id="cancelBuyBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-bg" id="delModal">
+  <div class="modal">
+    <h2>Delete it?</h2>
+    <p id="delText" style="margin:8px 0 4px"></p>
+    <input type="hidden" id="delId">
+    <div class="btns">
+      <button class="btn btn-danger" id="confirmDelBtn" style="flex:1">Yes, Delete</button>
+      <button class="btn btn-ghost" id="cancelDelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Barcode scan modal -->
+<div class="modal-bg" id="scanModal">
+  <div class="modal">
+    <h2>Barcode Scan</h2>
+    <video id="scanVideo" playsinline></video>
+    <div class="small" id="scanStatus" style="margin-top:8px">Opening camera…</div>
+    <label>Or type the barcode number</label>
+    <input type="text" id="scanInput" inputmode="numeric" placeholder="e.g. 8901234567890">
+    <div class="small">If you have a USB barcode scanner, click this box and scan — the number will type itself.</div>
+    <div class="btns">
+      <button class="btn btn-buy" id="scanLookupBtn" style="flex:1">Search</button>
+      <button class="btn btn-ghost" id="cancelScanBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var KEY = "ma_medicine_tracker_v1";
+var BAR_KEY = "ma_medicine_barcodes_v1";
+var LOW_DAYS = 7;   // shows the "need to buy" alert below this
+var SHEET_URL = "https://script.google.com/macros/s/AKfycbw1tYJAqwTyUdgB6F129UhPa894sUtBuUQC8iAbnFVyIpYNbWuw6ndBnRO1NemB/exec"; // Apps Script web app URL — "Ma er Medicine Sync"
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+  catch (e) { return []; }
+}
+function save(meds) { localStorage.setItem(KEY, JSON.stringify(meds)); }
+function saveAndSync(meds) { save(meds); syncToSheet(); }
+function loadBarcodes() {
+  try { return JSON.parse(localStorage.getItem(BAR_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveBarcodes(b) { localStorage.setItem(BAR_KEY, JSON.stringify(b)); }
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function dateOnly(s) { s = String(s || "").split("T")[0]; var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function fmtDate(d) {
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+}
+function uid() { return "m" + Date.now().toString(36) + Math.floor(Math.random() * 1000); }
+
+// Each day the page is opened, subtract the past days' doses from the stock
+function autoDecrement(meds) {
+  var today = todayStr();
+  var changed = false;
+  meds.forEach(function (m) {
+    var last = m.lastSync || today;
+    var days = Math.floor((dateOnly(today) - dateOnly(last)) / 86400000);
+    if (days > 0 && m.perDay > 0) {
+      m.stock = Math.max(0, m.stock - days * m.perDay);
+      changed = true;
+    }
+    m.lastSync = today;
+  });
+  if (changed) save(meds);
+  return meds;
+}
+
+function daysLeft(m) {
+  if (!m.perDay || m.perDay <= 0) return null;
+  return Math.floor(m.stock / m.perDay);
+}
+function finishDate(m) {
+  var d = daysLeft(m);
+  if (d === null) return "—";
+  var dt = new Date(); dt.setDate(dt.getDate() + d);
+  return fmtDate(dt);
+}
+function statusOf(m) {
+  var d = daysLeft(m);
+  if (d === null) return { cls: "ok", text: "No dose set" };
+  if (d <= 0) return { cls: "urgent", text: "⛔ Finished — buy now" };
+  if (d <= 3) return { cls: "urgent", text: "🔴 Very low — buy within 3 days" };
+  if (d <= LOW_DAYS) return { cls: "warn", text: "🟡 Need to buy — " + d + " days left" };
+  return { cls: "ok", text: "🟢 OK" };
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function render() {
+  var meds = autoDecrement(load());
+  var now = new Date();
+  document.getElementById("todayLine").textContent =
+    "Today: " + fmtDate(now) + "  •  " + meds.length + " medicine" + (meds.length === 1 ? "" : "s");
+  meds.sort(function (a, b) {
+    var da = daysLeft(a), db = daysLeft(b);
+    if (da === null) da = 9999; if (db === null) db = 9999;
+    return da - db;
+  });
+  var need = meds.filter(function (m) { var d = daysLeft(m); return d !== null && d <= LOW_DAYS; });
+  var alertHtml = "";
+  if (need.length) {
+    alertHtml = '<div class="section-title">⚠️ Need to Buy</div>' +
+      need.map(function (m) {
+        return '<div class="card alert-box"><b>' + esc(m.name) + '</b> — lasts ' +
+          daysLeft(m) + ' days (finishes: ' + finishDate(m) + ')</div>';
+      }).join("");
+  }
+  document.getElementById("alertSection").innerHTML = alertHtml;
+  var list = document.getElementById("medList");
+  if (!meds.length) {
+    list.innerHTML = '<div class="card empty">No medicine added yet.<br>Add the first one with <b>+ Add New Medicine</b> or <b>📷 Scan Barcode</b>.</div>';
+    return;
+  }
+  list.innerHTML = meds.map(function (m) {
+    var st = statusOf(m);
+    var d = daysLeft(m);
+    return '<div class="card">' +
+      '<div class="med-name">' + esc(m.name) + '</div>' +
+      (m.note ? '<div class="med-note">' + esc(m.note) + '</div>' : "") +
+      (m.barcode ? '<div class="med-note">Barcode: ' + esc(m.barcode) + '</div>' : "") +
+      '<div class="row"><span class="stock">Stock: <b>' + m.stock + '</b></span>' +
+      '<span class="days">' + (d === null ? "—" : "lasts " + d + " days") + '</span></div>' +
+      '<div class="finish">' + m.perDay + ' per day &nbsp;•&nbsp; Finishes: ' + finishDate(m) +
+      (m.lastBought ? ' &nbsp;•&nbsp; Last bought: ' + fmtDate(dateOnly(m.lastBought)) : "") + '</div>' +
+      '<span class="badge ' + st.cls + '">' + st.text + '</span>' +
+      '<div class="btns">' +
+      '<button class="btn btn-buy" onclick="openBuy(\'' + m.id + '\')">🛒 Bought</button>' +
+      '<button class="btn btn-edit" onclick="openEdit(\'' + m.id + '\')">✏️ Edit</button>' +
+      '<button class="btn btn-del" onclick="openDel(\'' + m.id + '\')">🗑️ Delete</button>' +
+      '</div></div>';
+  }).join("");
+}
+
+function openModal(id) { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+function openFormPrefill(known, barcode) {
+  document.getElementById("formTitle").textContent = known ? "Medicine — found from barcode" : "New Medicine";
+  document.getElementById("editId").value = "";
+  document.getElementById("fName").value = known ? known.name : "";
+  document.getElementById("fPerDay").value = known && known.perDay ? known.perDay : "";
+  document.getElementById("fStock").value = "";
+  document.getElementById("fNote").value = known && known.note ? known.note : "";
+  document.getElementById("fBarcode").value = barcode || "";
+  openModal("formModal");
+}
+document.getElementById("addBtn").onclick = function () { openFormPrefill(null, ""); };
+document.getElementById("cancelFormBtn").onclick = function () { closeModal("formModal"); };
+document.getElementById("saveBtn").onclick = function () {
+  var name = document.getElementById("fName").value.trim();
+  var perDay = parseFloat(document.getElementById("fPerDay").value);
+  var stock = parseInt(document.getElementById("fStock").value, 10);
+  var note = document.getElementById("fNote").value.trim();
+  var barcode = document.getElementById("fBarcode").value.trim();
+  if (!name) { alert("Enter the medicine name"); return; }
+  if (!perDay || perDay <= 0) { alert("Enter how many are taken per day"); return; }
+  if (isNaN(stock) || stock < 0) { alert("Enter how many are in stock now"); return; }
+  var meds = load();
+  var id = document.getElementById("editId").value;
+  if (id) {
+    var m = meds.find(function (x) { return x.id === id; });
+    if (m) { m.name = name; m.perDay = perDay; m.stock = stock; m.note = note; m.barcode = barcode; m.lastSync = todayStr(); }
+  } else {
+    meds.push({ id: uid(), name: name, perDay: perDay, stock: stock, note: note, barcode: barcode, lastSync: todayStr(), lastBought: "" });
+  }
+  if (barcode) {
+    var bars = loadBarcodes();
+    bars[barcode] = { name: name, perDay: perDay, note: note };
+    saveBarcodes(bars);
+  }
+  saveAndSync(meds); closeModal("formModal"); render();
+};
+
+window.openEdit = function (id) {
+  var m = load().find(function (x) { return x.id === id; });
+  if (!m) return;
+  document.getElementById("formTitle").textContent = "Edit Medicine";
+  document.getElementById("editId").value = m.id;
+  document.getElementById("fName").value = m.name;
+  document.getElementById("fPerDay").value = m.perDay;
+  document.getElementById("fStock").value = m.stock;
+  document.getElementById("fNote").value = m.note || "";
+  document.getElementById("fBarcode").value = m.barcode || "";
+  openModal("formModal");
+};
+window.openBuy = function (id) {
+  var m = load().find(function (x) { return x.id === id; });
+  if (!m) return;
+  document.getElementById("buyTitle").textContent = "Bought — " + m.name;
+  document.getElementById("buyId").value = m.id;
+  document.getElementById("buyQty").value = "";
+  openModal("buyModal");
+  setTimeout(function () { document.getElementById("buyQty").focus(); }, 100);
+};
+document.getElementById("cancelBuyBtn").onclick = function () { closeModal("buyModal"); };
+document.getElementById("confirmBuyBtn").onclick = function () {
+  var qty = parseInt(document.getElementById("buyQty").value, 10);
+  if (!qty || qty <= 0) { alert("Enter how many you bought"); return; }
+  var meds = load();
+  var m = meds.find(function (x) { return x.id === document.getElementById("buyId").value; });
+  if (m) { m.stock += qty; m.lastBought = todayStr(); m.lastSync = todayStr(); }
+  saveAndSync(meds); closeModal("buyModal"); render();
+};
+window.openDel = function (id) {
+  var m = load().find(function (x) { return x.id === id; });
+  if (!m) return;
+  document.getElementById("delText").textContent = '"' + m.name + '" — deleting it will also remove its stock record.';
+  document.getElementById("delId").value = m.id;
+  openModal("delModal");
+};
+document.getElementById("cancelDelBtn").onclick = function () { closeModal("delModal"); };
+document.getElementById("confirmDelBtn").onclick = function () {
+  var id = document.getElementById("delId").value;
+  saveAndSync(load().filter(function (x) { return x.id !== id; }));
+  closeModal("delModal"); render();
+};
+
+// ---- Barcode scan (mobile camera) ----
+var scanStream = null, scanRaf = null;
+var scanTarget = "main"; // "main" or "form"
+function onBarcode(code) {
+  code = String(code || "").trim();
+  if (!code) { alert("Enter or scan the barcode number"); return; }
+  stopScanner();
+  if (scanTarget === "form") {
+    document.getElementById("fBarcode").value = code;
+    openModal("formModal");
+    return;
+  }
+  var meds = load();
+  var existing = meds.find(function (m) { return m.barcode === code; });
+  if (existing) { openBuy(existing.id); return; }
+  var known = loadBarcodes()[code] || null;
+  openFormPrefill(known, code);
+  if (!known) {
+    setTimeout(function () { alert("This barcode is new — type the name once, and next time scanning will find it."); }, 200);
+  }
+}
+function stopScanner() {
+  if (scanRaf) { cancelAnimationFrame(scanRaf); scanRaf = null; }
+  if (scanStream) { scanStream.getTracks().forEach(function (t) { t.stop(); }); scanStream = null; }
+  closeModal("scanModal");
+}
+function startScanner() {
+  openModal("scanModal");
+  document.getElementById("scanInput").value = "";
+  var status = document.getElementById("scanStatus");
+  if (!("BarcodeDetector" in window)) {
+    status.textContent = "Camera scan doesn't work in this browser — type the barcode number in the box below (or scan with a USB scanner).";
+    setTimeout(function () { document.getElementById("scanInput").focus(); }, 100);
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status.textContent = "Camera couldn't open — type the barcode number in the box below.";
+    return;
+  }
+  status.textContent = "Opening camera…";
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } }).then(function (stream) {
+    scanStream = stream;
+    var video = document.getElementById("scanVideo");
+    video.srcObject = stream;
+    return video.play().then(function () {
+      status.textContent = "Hold the barcode in front of the camera…";
+      var detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "code_128", "upc_a", "upc_e", "code_39"] });
+      var loop = function () {
+        if (!scanStream) return;
+        detector.detect(video).then(function (codes) {
+          if (codes && codes.length) { onBarcode(codes[0].rawValue); return; }
+          scanRaf = requestAnimationFrame(loop);
+        }).catch(function () { scanRaf = requestAnimationFrame(loop); });
+      };
+      loop();
+    });
+  }).catch(function () {
+    status.textContent = "Camera couldn't open (permission may be denied) — type the barcode number in the box below.";
+  });
+}
+document.getElementById("scanBtn").onclick = function () { scanTarget = "main"; startScanner(); };
+document.getElementById("formScanBtn").onclick = function () {
+  scanTarget = "form";
+  closeModal("formModal");
+  startScanner();
+};
+document.getElementById("cancelScanBtn").onclick = function () { scanTarget = "main"; stopScanner(); };
+document.getElementById("scanLookupBtn").onclick = function () { onBarcode(document.getElementById("scanInput").value); };
+document.getElementById("scanInput").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); onBarcode(e.target.value); }
+});
+
+// ---- Google Sheet auto backup (silent — no buttons, every save goes to the Sheet) ----
+function syncToSheet() {
+  if (!SHEET_URL) return Promise.resolve(false);
+  return fetch(SHEET_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ medicines: load() })
+  }).then(function (r) { return r.json(); }).then(function (j) {
+    return !!(j && j.ok);
+  }).catch(function () { return false; });
+}
+
+render();
+</script>
+</body>
+</html>
