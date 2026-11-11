@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mom's Medicine Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #EEF2F1; color: #111827; padding: 0 14px 20px; max-width: 560px; margin: 0 auto; -webkit-font-smoothing: antialiased; }
+
+  /* Header */
+  .hero { background: linear-gradient(135deg, #0F766E 0%, #0B5E57 100%); color: #fff; border-radius: 0 0 20px 20px; padding: 22px 18px 18px; margin: 0 -14px 16px; box-shadow: 0 4px 16px rgba(15, 118, 110, .25); }
+  .hero-title { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+  .hero-sub { font-size: 13px; color: #CCFBF1; margin-top: 3px; }
+  .hero-date { font-size: 12px; color: #99F6E4; margin-top: 10px; }
+  .hero-stats { display: flex; gap: 8px; margin-top: 12px; }
+  .chip { background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); color: #fff; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 999px; }
+  .chip.alert { background: #FEF3C7; border-color: #FDE68A; color: #92400E; }
+
+  /* Buttons */
+  .btn { border: none; border-radius: 12px; padding: 11px 16px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-add { background: #0F766E; color: #fff; width: 100%; padding: 14px; font-size: 16px; margin: 2px 0 10px; box-shadow: 0 2px 8px rgba(15,118,110,.35); }
+  .btn-add:active { background: #0B5E57; }
+  .btn-scan { background: #fff; color: #0F766E; border: 1.5px solid #0F766E; width: 100%; padding: 12px; font-size: 15px; margin: 0 0 6px; }
+  .btn-buy { background: #15803D; color: #fff; }
+  .btn-edit { background: #E0F2F1; color: #0F766E; }
+  .btn-del { background: #FEF2F2; color: #B91C1C; }
+  .btn-order { background: #25D366; color: #fff; }
+  .btn-ghost { background: #fff; color: #0F766E; border: 1px solid #D1D5DB; }
+  .btn-danger { background: #B91C1C; color: #fff; }
+  .btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+  /* Sections & cards */
+  .section-title { font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: #6B7280; margin: 20px 0 10px; }
+  .card { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .card.need { border-left: 4px solid #D97706; }
+  .card.critical { border-left: 4px solid #DC2626; }
+  .med-name { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+  .med-note { color: #6B7280; font-size: 13px; margin-top: 3px; }
+  .stock-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 14px; }
+  .stock-num { font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+  .stock-label { font-size: 12px; color: #6B7280; margin-top: 3px; }
+  .days-num { font-size: 15px; font-weight: 800; text-align: right; }
+  .days-label { font-size: 12px; color: #6B7280; text-align: right; margin-top: 3px; }
+  .bar { height: 8px; background: #E5E7EB; border-radius: 999px; margin-top: 12px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; }
+  .bar-fill.ok { background: #16A34A; }
+  .bar-fill.warn { background: #D97706; }
+  .bar-fill.urgent { background: #DC2626; }
+  .finish { font-size: 13px; color: #6B7280; margin-top: 10px; line-height: 1.5; }
+  .badge { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 800; margin-top: 12px; }
+  .ok { background: #DCFCE7; color: #15803D; }
+  .warn { background: #FEF3C7; color: #92400E; }
+  .urgent { background: #FEE2E2; color: #B91C1C; }
+  .empty { text-align: center; color: #6B7280; padding: 28px 12px; font-size: 15px; line-height: 1.6; }
+
+  /* Modals */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(17,24,39,.55); z-index: 10; align-items: flex-end; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; border-radius: 20px 20px 0 0; padding: 20px 18px 22px; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; }
+  .modal h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; }
+  label { display: block; font-size: 13px; font-weight: 700; color: #374151; margin: 14px 0 5px; }
+  input { width: 100%; padding: 12px; font-size: 16px; border: 1.5px solid #D1D5DB; border-radius: 12px; font-family: inherit; }
+  input:focus { outline: none; border-color: #0F766E; }
+  .modal .btns { margin-top: 18px; }
+  .footer { text-align: center; color: #9CA3AF; font-size: 12px; margin: 20px 0 8px; line-height: 1.7; }
+  .small { font-size: 13px; color: #6B7280; line-height: 1.5; }
+
+  /* Scanner */
+  .scan-frame { position: relative; border-radius: 16px; overflow: hidden; background: #000; margin-top: 12px; }
+  #scanVideo { width: 100%; display: block; min-height: 220px; background: #000; }
+  .scan-corners i { position: absolute; width: 30px; height: 30px; border: 3px solid #fff; opacity: .95; }
+  .scan-corners i:nth-child(1) { top: 14px; left: 14px; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+  .scan-corners i:nth-child(2) { top: 14px; right: 14px; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
+  .scan-corners i:nth-child(3) { bottom: 14px; left: 14px; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
+  .scan-corners i:nth-child(4) { bottom: 14px; right: 14px; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+  .scan-line { position: absolute; left: 10%; right: 10%; height: 2px; background: #34D399; box-shadow: 0 0 14px 2px rgba(52,211,153,.8); animation: scanmove 2.2s ease-in-out infinite alternate; }
+  @keyframes scanmove { from { top: 14%; } to { top: 86%; } }
+  .scan-hint { text-align: center; font-size: 13px; color: #6B7280; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-title">💊 Mom's Medicine</div>
+  <div class="hero-sub">Stock, refills &amp; reminders — in one place</div>
+  <div class="hero-stats">
+    <span class="chip" id="statTotal">0 medicines</span>
+    <span class="chip" id="statNeed">All stocked</span>
+  </div>
+  <div class="hero-date" id="todayLine"></div>
+</header>
+
+<button class="btn btn-add" id="addBtn">+ Add New Medicine</button>
+<button class="btn btn-scan" id="scanBtn">📷 Scan Barcode / QR</button>
+
+<div id="alertSection"></div>
+
+<div class="section-title">All Medicines</div>
+<div id="medList"></div>
+
+<div class="footer">Stock decreases automatically every day you open it (based on the daily dose).<br>If the stock looks wrong, fix it with Edit.<br>Once a barcode or QR code is saved, scanning it later will bring up the medicine.<br>Every save backs up to Google Sheet automatically.</div>
+
+<!-- Add / Edit modal -->
+<div class="modal-bg" id="formModal">
+  <div class="modal">
+    <h2 id="formTitle">New Medicine</h2>
+    <input type="hidden" id="editId">
+    <label>Medicine name *</label>
+    <input type="text" id="fName" placeholder="e.g. Thyronorm 50">
+    <label>How many per day *</label>
+    <input type="number" id="fPerDay" min="0.5" step="0.5" placeholder="e.g. 1">
+    <label>How many in stock now *</label>
+    <input type="number" id="fStock" min="0" step="1" placeholder="e.g. 30">
+    <label>When to take / note (optional)</label>
+    <input type="text" id="fNote" placeholder="e.g. morning on empty stomach">
+    <label>Barcode / QR (optional)</label>
+    <div style="display:flex; gap:8px">
+      <input type="text" id="fBarcode" inputmode="text" placeholder="barcode / QR on the strip" style="flex:1">
+      <button class="btn btn-ghost" id="formScanBtn" type="button">📷 Scan</button>
+    </div>
+    <div class="btns">
+      <button class="btn btn-buy" id="saveBtn" style="flex:1">Save</button>
+      <button class="btn btn-ghost" id="cancelFormBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Buy modal -->
+<div class="modal-bg" id="buyModal">
+  <div class="modal">
+    <h2 id="buyTitle">Bought</h2>
+    <input type="hidden" id="buyId">
+    <label>How many did you buy?</label>
+    <input type="number" id="buyQty" min="1" step="1" placeholder="e.g. 30">
+    <div class="btns">
+      <button class="btn btn-buy" id="confirmBuyBtn" style="flex:1">Add to Stock</button>
+      <button class="btn btn-ghost" id="cancelBuyBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-bg" id="delModal">
+  <div class="modal">
+    <h2>Delete it?</h2>
+    <p id="delText" style="margin:8px 0 4px"></p>
+    <input type="hidden" id="delId">
+    <div class="btns">
+      <button class="btn btn-danger" id="confirmDelBtn" style="flex:1">Yes, Delete</button>
+      <button class="btn btn-ghost" id="cancelDelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Low stock popup -->
+<div class="modal-bg" id="lowStockModal">
+  <div class="modal">
+    <h2>⚠️ Low Stock Alert</h2>
+    <p class="small" style="margin:6px 0 4px">These medicines will finish within 4 days:</p>
+    <div id="lowStockList"></div>
+    <div class="btns">
+      <button class="btn btn-buy" id="lowStockOkBtn" style="flex:1">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Barcode scan modal -->
+<div class="modal-bg" id="scanModal">
+  <div class="modal">
+    <h2>Scan Barcode or QR</h2>
+    <div class="scan-frame">
+      <video id="scanVideo" playsinline></video>
+      <div class="scan-corners"><i></i><i></i><i></i><i></i></div>
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-hint" id="scanStatus">Opening camera…</div>
+    <label>Or type the barcode / QR code</label>
+    <input type="text" id="scanInput" inputmode="text" placeholder="e.g. 8901234567890">
+    <div class="small">If you have a USB barcode scanner, click this box and scan — the number will type itself.</div>
+    <div class="btns">
+      <button class="btn btn-buy" id="scanLookupBtn" style="flex:1">Search</button>
+      <button class="btn btn-ghost" id="cancelScanBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var KEY = "ma_medicine_tracker_v1";
+var BAR_KEY = "ma_medicine_barcodes_v1";
+var LOW_DAYS = 7;   // shows the "need to buy" alert below this
+var SHEET_URL = "https://script.google.com/macros/s/AKfycbw1tYJAqwTyUdgB6F129UhPa894sUtBuUQC8iAbnFVyIpYNbWuw6ndBnRO1NemB/exec"; // Apps Script web app URL — "Ma er Medicine Sync"
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+  catch (e) { return []; }
+}
+function save(meds) { localStorage.setItem(KEY, JSON.stringify(meds)); }
+function saveAndSync(meds) { save(meds); syncToSheet(); }
+function loadBarcodes() {
+  try { return JSON.parse(localStorage.getItem(BAR_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveBarcodes(b) { localStorage.setItem(BAR_KEY, JSON.stringify(b)); }
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function dateOnly(s) { s = String(s || "").split("T")[0]; var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function fmtDate(d) {
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+}
+function uid() { return "m" + Date.now().toString(36) + Math.floor(Math.random() * 1000); }
+
+// Each day the page is opened, subtract the past days' doses from the stock
+function autoDecrement(meds) {
+  var today = todayStr();
+  var changed = false;
+  meds.forEach(function (m) {
+    var last = m.lastSync || today;
+    var days = Math.floor((dateOnly(today) - dateOnly(last)) / 86400000);
+    if (days > 0 && m.perDay > 0) {
+      m.stock = Math.max(0, m.stock - days * m.perDay);
+      changed = true;
+    }
+    m.lastSync = today;
+  });
+  if (changed) save(meds);
+  return meds;
+}
+
+function daysLeft(m) {
+  if (!m.perDay || m.perDay <= 0) return null;
+  return Math.floor(m.stock / m.perDay);
+}
+function finishDate(m) {
+  var d = daysLeft(m);
+  if (d === null) return "—";
+  var dt = new Date(); dt.setDate(dt.getDate() + d);
+  return fmtDate(dt);
+}
+function statusOf(m) {
+  var d = daysLeft(m);
+  if (d === null) return { cls: "ok", text: "No dose set" };
+  if (d <= 0) return { cls: "urgent", text: "⛔ Finished — buy now" };
+  if (d <= 3) return { cls: "urgent", text: "🔴 Very low — buy within 3 days" };
+  if (d <= LOW_DAYS) return { cls: "warn", text: "🟡 Need to buy — " + d + " days left" };
+  return { cls: "ok", text: "🟢 OK" };
+}
+function barClass(m) {
+  var d = daysLeft(m);
+  if (d === null) return "ok";
+  if (d <= 3) return "urgent";
+  if (d <= LOW_DAYS) return "warn";
+  return "ok";
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function render() {
+  var meds = autoDecrement(load());
+  var now = new Date();
+  document.getElementById("todayLine").textContent = "Today: " + fmtDate(now);
+  document.getElementById("statTotal").textContent = meds.length + (meds.length === 1 ? " medicine" : " medicines");
+  var needCount = meds.filter(function (m) { var d = daysLeft(m); return d !== null && d <= LOW_DAYS; }).length;
+  var statNeed = document.getElementById("statNeed");
+  statNeed.textContent = needCount ? needCount + " need refill" : "All stocked";
+  statNeed.className = "chip" + (needCount ? " alert" : "");
+  meds.sort(function (a, b) {
+    var da = daysLeft(a), db = daysLeft(b);
+    if (da === null) da = 9999; if (db === null) db = 9999;
+    return da - db;
+  });
+  var need = meds.filter(function (m) { var d = daysLeft(m); return d !== null && d <= LOW_DAYS; });
+  var alertHtml = "";
+  if (need.length) {
+    alertHtml = '<div class="section-title">⚠️ Need to Buy</div>' +
+      need.map(function (m) {
+        return '<div class="card ' + (daysLeft(m) <= 3 ? "critical" : "need") + '"><b>' + esc(m.name) + '</b> — lasts ' +
+          daysLeft(m) + ' days (finishes: ' + finishDate(m) + ')</div>';
+      }).join("");
+  }
+  document.getElementById("alertSection").innerHTML = alertHtml;
+  var list = document.getElementById("medList");
+  if (!meds.length) {
+    list.innerHTML = '<div class="card empty">No medicine added yet.<br>Add the first one with <b>+ Add New Medicine</b> or <b>📷 Scan Barcode</b>.</div>';
+    return;
+  }
+  list.innerHTML = meds.map(function (m) {
+    var st = statusOf(m);
+    var d = daysLeft(m);
+    var pct = d === null ? 100 : Math.max(4, Math.min(100, Math.round(d / 30 * 100)));
+    return '<div class="card">' +
+      '<div class="med-name">' + esc(m.name) + '</div>' +
+      (m.note ? '<div class="med-note">' + esc(m.note) + '</div>' : "") +
+      (m.barcode ? '<div class="med-note">Code: ' + esc(m.barcode) + '</div>' : "") +
+      '<div class="stock-row"><div><div class="stock-num">' + m.stock + '</div><div class="stock-label">tablets left</div></div>' +
+      '<div><div class="days-num">' + (d === null ? "—" : d + " days") + '</div><div class="days-label">remaining</div></div></div>' +
+      '<div class="bar"><div class="bar-fill ' + barClass(m) + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="finish">' + m.perDay + ' per day &nbsp;•&nbsp; Finishes: ' + finishDate(m) +
+      (m.lastBought ? ' &nbsp;•&nbsp; Last bought: ' + fmtDate(dateOnly(m.lastBought)) : "") + '</div>' +
+      '<span class="badge ' + st.cls + '">' + st.text + '</span>' +
+      '<div class="btns">' +
+      '<button class="btn btn-buy" onclick="openBuy(\'' + m.id + '\')">🛒 Bought</button>' +
+      '<button class="btn btn-edit" onclick="openEdit(\'' + m.id + '\')">✏️ Edit</button>' +
+      '<button class="btn btn-del" onclick="openDel(\'' + m.id + '\')">🗑️ Delete</button>' +
+      '<button class="btn btn-order" onclick="orderMed(\'' + m.id + '\')">💬 Order</button>' +
+      '</div></div>';
+  }).join("");
+  checkLowStockPopup(meds);
+}
+
+function openModal(id) { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+function openFormPrefill(known, barcode) {
+  document.getElementById("formTitle").textContent = known ? "Medicine — found from code" : "New Medicine";
+  document.getElementById("editId").value = "";
+  document.getElementById("fName").value = known ? known.name : "";
+  document.getElementById("fPerDay").value = known && known.perDay ? known.perDay : "";
+  document.getElementById("fStock").value = "";
+  document.getElementById("fNote").value = known && known.note ? known.note : "";
+  document.getElementById("fBarcode").value = barcode || "";
+  openModal("formModal");
+}
+document.getElementById("addBtn").onclick = function () { openFormPrefill(null, ""); };
+document.getElementById("cancelFormBtn").onclick = function () { closeModal("formModal"); };
+document.getElementById("saveBtn").onclick = function () {
+  var name = document.getElementById("fName").value.trim();
+  var perDay = parseFloat(document.getElementById("fPerDay").value);
+  var stock = parseInt(document.getElementById("fStock").value, 10);
+  var note = document.getElementById("fNote").value.trim();
+  var barcode = document.getElementById("fBarcode").value.trim();
+  if (!name) { alert("Enter the medicine name"); return; }
+  if (!perDay || perDay <= 0) { alert("Enter how many are taken per day"); return; }
+  if (isNaN(stock) || stock < 0) { alert("Enter how many are in stock now"); return; }
+  var meds = load();
+  var id = document.getElementById("editId").value;
+  if (id) {
+    var m = meds.find(function (x) { return x.id === id; });
+    if (m) { m.name = name; m.perDay = perDay; m.stock = stock; m.note = note; m.barcode = barcode; m.lastSync = todayStr(); }
+  } else {
+    meds.push({ id: uid(), name: name, perDay: perDay, stock: stock, note: note, barcode: barcode, lastSync: todayStr(), lastBought: "" });
+  }
+  if (barcode) {
+    var bars = loadBarcodes();
+    bars[barcode] = { name: name, perDay: perDay, note: note };
+    saveBarcodes(bars);
+  }
+  saveAndSync(meds); closeModal("formModal"); render();
+};
+
+window.openEdit = function (id) {
+  var m = load().find(function (x) { return x.id === id; });
+  if (!m) return;
+  document.getElementById("formTitle").textContent = "Edit Medicine";
+  document.getElementById("editId").value = m.id;
+  document.getElementById("fName").value = m.name;
+  document.getElementById("fPerDay").value = m.perDay;
+  document.getElementById("fStock").value = m.stock;
+  document.getElementById("fNote").value = m.note || "";
+  document.getElementById("fBarcode").value = m.barcode || "";
+  openModal("formModal");
+};
+window.openBuy = function (id) {
+  var m = load().find(function (x) { return x.id === id; });
+  if (!m) return;
+  document.getElementById("buyTitle").textContent = "Bought — " + m.name;
+  document.getElementById("buyId").value = m.id;
+  document.getElementById("buyQty").value = "";
+  openModal("buyModal");
+  setTimeout(function () { document.getElementById("buyQty").focus(); }, 100);
+};
+document.getElementById("cancelBuyBtn").onclick = function () { closeModal("buyModal"); };
+document.getElementById("confirmBuyBtn").onclick = function () {
+  var qty = parseInt(document.getElementById("buyQty").value, 10);
+  if (!qty || qty <= 0) { alert("Enter how many you bought"); return; }
+  var meds = load();
+  var m = meds.find(function (x) { return x.id === document.getElementById("buyId").value; });
+  if (m) { m.stock += qty; m.lastBought = todayStr(); m.lastSync = todayStr(); }
+  saveAndSync(meds); closeModal("buyModal"); render();
+};
+window.openDel = function (id) {
+  var m = load().find(function (x) { return x.id === id; });
+  if (!m) return;
+  document.getElementById("delText").textContent = '"' + m.name + '" — deleting it will also remove its stock record.';
+  document.getElementById("delId").value = m.id;
+  openModal("delModal");
+};
+document.getElementById("cancelDelBtn").onclick = function () { closeModal("delModal"); };
+document.getElementById("confirmDelBtn").onclick = function () {
+  var id = document.getElementById("delId").value;
+  saveAndSync(load().filter(function (x) { return x.id !== id; }));
+  closeModal("delModal"); render();
+};
+
+// ---- Low stock popup (4 days or less, once a day) ----
+var LOW_POPUP_DAYS = 4;
+var POPUP_KEY = "ma_medicine_lowstock_popup";
+function checkLowStockPopup(meds) {
+  var low = meds.filter(function (m) { var d = daysLeft(m); return d !== null && d <= LOW_POPUP_DAYS; });
+  if (!low.length) return;
+  if (localStorage.getItem(POPUP_KEY) === todayStr()) return;
+  localStorage.setItem(POPUP_KEY, todayStr());
+  document.getElementById("lowStockList").innerHTML = low.map(function (m) {
+    var d = daysLeft(m);
+    var label = d <= 0 ? "finished" : d + (d === 1 ? " day left" : " days left");
+    return '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid #E5E7EB"><div><b>' + esc(m.name) + '</b><div class="small">' + label + '</div></div>' +
+      '<button class="btn btn-buy" style="padding:8px 14px" onclick="lowStockBuy(\'' + m.id + '\')">Buy</button></div>';
+  }).join("");
+  openModal("lowStockModal");
+}
+window.lowStockBuy = function (id) { closeModal("lowStockModal"); openBuy(id); };
+document.getElementById("lowStockOkBtn").onclick = function () { closeModal("lowStockModal"); };
+
+// ---- Order on WhatsApp (no number needed — pick the pharmacy in WhatsApp) ----
+window.orderMed = function (id) {
+  var m = load().find(function (x) { return x.id === id; });
+  if (!m) return;
+  var msg = "Hi, I want to order " + m.name + ". Please confirm availability and price.";
+  var url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(msg);
+  if (navigator.userAgent.indexOf("wv") !== -1) {
+    // Inside the app's WebView: a plain navigation always reaches the app's
+    // WhatsApp handler; a new-window open can fail to load instead.
+    window.location.href = url;
+  } else {
+    window.open(url, "_blank");
+  }
+};
+
+// ---- Barcode scan (mobile camera) ----
+var scanStream = null, scanRaf = null;
+var scanTarget = "main"; // "main" or "form"
+function onBarcode(code) {
+  code = String(code || "").trim();
+  if (!code) { alert("Enter or scan the barcode / QR code"); return; }
+  stopScanner();
+  if (scanTarget === "form") {
+    document.getElementById("fBarcode").value = code;
+    openModal("formModal");
+    return;
+  }
+  var meds = load();
+  var existing = meds.find(function (m) { return m.barcode === code; });
+  if (existing) { openBuy(existing.id); return; }
+  var known = loadBarcodes()[code] || null;
+  openFormPrefill(known, code);
+  if (!known) {
+    setTimeout(function () { alert("This code is new — type the name once, and next time scanning will find it."); }, 200);
+  }
+}
+function stopScanner() {
+  if (scanRaf) { cancelAnimationFrame(scanRaf); scanRaf = null; }
+  if (scanStream) { scanStream.getTracks().forEach(function (t) { t.stop(); }); scanStream = null; }
+  closeModal("scanModal");
+}
+function startScanner() {
+  openModal("scanModal");
+  document.getElementById("scanInput").value = "";
+  var status = document.getElementById("scanStatus");
+  if (!("BarcodeDetector" in window)) {
+    status.textContent = "Camera scan doesn't work in this browser — type the barcode / QR code in the box below (or scan with a USB scanner).";
+    setTimeout(function () { document.getElementById("scanInput").focus(); }, 100);
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    status.textContent = "Camera couldn't open — type the barcode / QR code in the box below.";
+    return;
+  }
+  status.textContent = "Opening camera…";
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } }).then(function (stream) {
+    scanStream = stream;
+    var video = document.getElementById("scanVideo");
+    video.srcObject = stream;
+    return video.play().then(function () {
+      status.textContent = "Hold the barcode or QR code in front of the camera…";
+      var detector = new BarcodeDetector({ formats: ["qr_code", "ean_13", "ean_8", "code_128", "upc_a", "upc_e", "code_39"] });
+      var loop = function () {
+        if (!scanStream) return;
+        detector.detect(video).then(function (codes) {
+          if (codes && codes.length) { onBarcode(codes[0].rawValue); return; }
+          scanRaf = requestAnimationFrame(loop);
+        }).catch(function () { scanRaf = requestAnimationFrame(loop); });
+      };
+      loop();
+    });
+  }).catch(function () {
+    status.textContent = "Camera couldn't open (permission may be denied) — type the barcode / QR code in the box below.";
+  });
+}
+document.getElementById("scanBtn").onclick = function () { scanTarget = "main"; startScanner(); };
+document.getElementById("formScanBtn").onclick = function () {
+  scanTarget = "form";
+  closeModal("formModal");
+  startScanner();
+};
+document.getElementById("cancelScanBtn").onclick = function () { scanTarget = "main"; stopScanner(); };
+document.getElementById("scanLookupBtn").onclick = function () { onBarcode(document.getElementById("scanInput").value); };
+document.getElementById("scanInput").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); onBarcode(e.target.value); }
+});
+
+// ---- Google Sheet sync (two-way, silent — no buttons) ----
+// The Sheet is the shared copy between the app and the website: every save
+// pushes the full list up, and on every open the page pulls the Sheet and
+// merges it in. Newer wins per medicine (later lastBought first, then later
+// lastSync), so stock added in the app appears on the website and vice versa.
+function newerThan(a, b) {
+  if ((a.lastBought || "") !== (b.lastBought || "")) return (a.lastBought || "") > (b.lastBought || "");
+  return (a.lastSync || "").slice(0, 10) > (b.lastSync || "").slice(0, 10);
+}
+function fromSheetRow(r, i) {
+  return {
+    id: "s" + Date.now().toString(36) + i,
+    name: r.name || "",
+    perDay: Number(r.perDay) || 1,
+    stock: Number(r.stock) || 0,
+    note: r.note || "",
+    barcode: r.barcode || "",
+    lastBought: (r.lastBought || "").slice(0, 10),
+    lastSync: (r.lastSync || "").slice(0, 10)
+  };
+}
+function mergeFromSheet(rows) {
+  var local = load();
+  var byName = {};
+  local.forEach(function (m) { byName[m.name] = m; });
+  var merged = [];
+  var localNewer = false;
+  rows.forEach(function (r, i) {
+    var s = fromSheetRow(r, i);
+    var l = byName[s.name];
+    if (!l) { merged.push(s); return; }
+    delete byName[s.name];
+    if (newerThan(s, l)) { merged.push(s); }
+    else { merged.push(l); if (newerThan(l, s)) localNewer = true; }
+  });
+  Object.keys(byName).forEach(function (n) { merged.push(byName[n]); localNewer = true; });
+  return { merged: merged, localNewer: localNewer };
+}
+function loadFromSheet() {
+  if (!SHEET_URL) return;
+  fetch(SHEET_URL).then(function (r) { return r.json(); }).then(function (j) {
+    if (!j || !j.ok || !Array.isArray(j.medicines)) return;
+    var res = mergeFromSheet(j.medicines);
+    save(res.merged);
+    render();
+    if (res.localNewer) syncToSheet();
+  }).catch(function () { /* offline — keep local data */ });
+}
+function syncToSheet(retry) {
+  if (!SHEET_URL) return Promise.resolve(false);
+  return fetch(SHEET_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ medicines: load() })
+  }).then(function (r) { return r.json(); }).then(function (j) {
+    // doPost answers {ok:true, saved:N}; a redirect that turns the POST into
+    // a GET answers {ok:true, medicines:[...]} with no "saved" — that is NOT
+    // a successful write, so retry once.
+    var ok = !!(j && j.ok && typeof j.saved === "number");
+    if (!ok && !retry) {
+      return new Promise(function (resolve) {
+        setTimeout(function () { syncToSheet(true).then(resolve); }, 2000);
+      });
+    }
+    return ok;
+  }).catch(function () {
+    if (!retry) {
+      return new Promise(function (resolve) {
+        setTimeout(function () { syncToSheet(true).then(resolve); }, 2000);
+      });
+    }
+    return false;
+  });
+}
+
+render();
+loadFromSheet();
+// When the app comes back to the foreground, refresh from the Sheet and
+// re-check the low-stock popup, so the alert shows in the app too.
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden) { loadFromSheet(); render(); }
+});
+</script>
+</body>
+</html>
